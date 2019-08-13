@@ -4,6 +4,10 @@ library(utils)
 # get the SLM data
 # need to get quest data before using import_data_pdt.R
 
+# There was SET A or Set B
+# Set A: Lemon and Cherry THEN Strawberry and Blueberry; first controllable, then not controllable
+# Set B: Lemon and Cherry THEN Strawberry and Blueberry; first not controllable, then controllable
+
 # get the variables from data_quest, and ID variable
 desired_vars = names(data_quest)[grep('^SLM',names(data_quest))]
 slm_quest = data_quest[c('data_par.P104_01',desired_vars)]
