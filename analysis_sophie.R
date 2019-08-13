@@ -40,37 +40,8 @@ slm_quest$SLM2_7 <- 100 - slm_quest$SLM2_7
 ## only first two items relevant for research question
 ## both items should be included in the analysis and be treated as single variables
 
-## remove irrelevant columns
-COPY$SLM1_3a <- NULL
-COPY$SLM1_3b <- NULL
-COPY$SLM1_3c <- NULL
-COPY$SLM1_3d <- NULL
-COPY$SLM1_3e <- NULL
-COPY$SLM1_3f <- NULL
-COPY$SLM1_3g <- NULL
-COPY$SLM1_4 <- NULL
-COPY$SLM1_5 <- NULL
-COPY$SLM1_6 <- NULL
-COPY$SLM1_7 <- NULL
-COPY$SLM1_8 <- NULL
-COPY$SLM1_9 <- NULL
-
-COPY$SLM2_3a <- NULL
-COPY$SLM2_3b <- NULL
-COPY$SLM2_3c <- NULL
-COPY$SLM2_3d <- NULL
-COPY$SLM2_3e <- NULL
-COPY$SLM2_3f <- NULL
-COPY$SLM2_3g <- NULL
-COPY$SLM2_4 <- NULL
-COPY$SLM2_5 <- NULL
-COPY$SLM2_6 <- NULL
-COPY$SLM2_7 <- NULL
-COPY$SLM2_8 <- NULL
-COPY$SLM2_9 <- NULL
-
 ## renaming data frame
-slm_quest_relevant <- COPY
+slm_quest_relevant <- slm_quest[c('VPPG','HCPG','SLM1_1','SLM1_2','SLM2_1','SLM2_2','first_controllable')]
 
 # make one SLM_infl SLM_noninfl variable
 warning('We have to check the original data! The SLM question for second SLM seemes to be poled the other way around.')
@@ -84,42 +55,47 @@ message('There is no NA left in dependent variable:')
 message(all(!is.na(slm_quest_relevant$SLM1_2)))
 message(all(!is.na(slm_quest_relevant$SLM2_2)))
 
-# RECODE
-warning('Perhaps the recoding has already been done!!!')
-slm_quest_relevant$SLM_infl = NA
-slm_quest_relevant$SLM_ninfl = NA
+# omit NA
+slm_quest_relevant = na.omit(slm_quest_relevant)
+slm_quest_long$VPPG = droplevels(slm_quest_long$VPPG)
 
-for (ii in 1:length(slm_quest_relevant$SLM_infl)) {
-  if(is.na(slm_quest_relevant$SLM_Set[ii])) {
-    slm_quest_relevant$SLM_infl[ii] = NA
-    slm_quest_relevant$SLM_ninfl[ii] = NA
-    next
-  }
-  if(slm_quest_relevant$SLM_Set[ii] == 'A') {
-    slm_quest_relevant$SLM_infl[ii] = slm_quest_relevant$SLM1_2[ii]
-    slm_quest_relevant$SLM_ninfl[ii] = slm_quest_relevant$SLM2_2[ii]
-    next
-  }
-  if(slm_quest_relevant$SLM_Set[ii] == 'B') {
-    slm_quest_relevant$SLM_infl[ii] = slm_quest_relevant$SLM2_2[ii]
-    slm_quest_relevant$SLM_ninfl[ii] = slm_quest_relevant$SLM1_2[ii]
-    next
+# RECODE
+slm_quest_relevant$Controllable = NA
+slm_quest_relevant$NotControllable = NA
+
+
+
+for (ii in 1:length(slm_quest_relevant$VPPG)) {
+  if (slm_quest_relevant$first_controllable[ii]) {
+    slm_quest_relevant$Controllable[ii] = slm_quest_relevant$SLM1_2[ii]
+    slm_quest_relevant$NotControllable[ii] = slm_quest_relevant$SLM2_2[ii]
+  } else {
+    slm_quest_relevant$Controllable[ii] = slm_quest_relevant$SLM2_2[ii]
+    slm_quest_relevant$NotControllable[ii] = slm_quest_relevant$SLM1_2[ii]
   }
 }
 
-warning('RECODING DOES NOT SEEM TO WORK!')
+slm_quest_relevant$SLM1_2 = NULL
+slm_quest_relevant$SLM2_2 = NULL
+slm_quest_relevant$first_controllable = NULL
 
-## within variables: SLM_infl vs. SLM_noninfl
-## between variable: HC vs. PG
+# long format
+slm_quest_long = reshape2::melt(slm_quest_relevant,measure.vars = c('Controllable','NotControllable'))
+names(slm_quest_long)[grep('value',names(slm_quest_long))] = 'rating_controllability'
+names(slm_quest_long)[grep('variable',names(slm_quest_long))] = 'instr_controllability'
 
-## descriptives
-by(slm_quest_relevant$SLM_infl, list(slm_quest_relevant$HCPG), stat.desc, basic = FALSE)
-by(slm_quest_relevant$SLM_ninfl, list(slm_quest_relevant$HCPG), stat.desc, basic = FALSE) ## what does "basic = FALSE" mean?
+
+# descriptives
+plot(slm_quest_long$rating_controllability ~ slm_quest_long$instr_controllability)
+describeBy(slm_quest_long$rating_controllability,slm_quest_long$instr_controllability)
+
+warning('Controllable and NotControllable seemed to be switched around or still completely random; need to check original data.')
+
 
 ## control conditions/variables: not controllable/HC
 ## setting contrasts not necessary
 ## run mixed ANOVA
-SLM_Model<-ezANOVA(data = slm_quest_relevant, dv = .('SLM_infl', 'SLM_ninfl'), wid = .(VPPG), between = .(HCPG), within = .(SLM_Set), type = 1, detailed = TRUE)
+SLM_Model<-ezANOVA(data = slm_quest_long, dv = .(rating_controllability), wid = .(VPPG), 
+                   between = .(HCPG), within = .(instr_controllability), type = 2, detailed = TRUE)
 SLM_Model
-class(slm_quest_relevant$SLM_ninfl)
-class(slm_quest_relevant$SLM_infl)
+
